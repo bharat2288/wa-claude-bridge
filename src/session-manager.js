@@ -74,8 +74,8 @@ export class SessionManager {
       this.sendButtons(
         tagged,
         [
-          { id: 'approve', title: '✓ Approve' },
-          { id: 'deny', title: '✗ Deny' },
+          { id: `approve_${projectName}`, title: '✓ Approve' },
+          { id: `deny_${projectName}`, title: '✗ Deny' },
         ]
       ).catch(err => {
         // Fallback to text if buttons fail
@@ -148,22 +148,24 @@ export class SessionManager {
   /**
    * Approve or deny a pending Bash command for the active session.
    */
-  approveAction(approved) {
-    if (!this.activeProject) {
+  approveAction(approved, projectName = null) {
+    const target = projectName || this.activeProject;
+    if (!target) {
       return 'No active session.';
     }
 
-    const entry = this.sessions.get(this.activeProject);
+    const entry = this.sessions.get(target);
     if (!entry) {
-      return 'No active session.';
+      return `No session found for "${target}".`;
     }
 
     const resolved = entry.session.resolvePendingApproval(approved);
     if (!resolved) {
-      return 'No pending approval to respond to.';
+      return `No pending approval for ${target}.`;
     }
 
-    return approved ? '_Approved._' : '_Denied._';
+    const label = approved ? '_Approved._' : '_Denied._';
+    return entry.formatter.addProjectTag(label, target);
   }
 
   /**

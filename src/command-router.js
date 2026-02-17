@@ -34,12 +34,14 @@ export class CommandRouter {
    * Handle interactive button/list replies.
    */
   handleButtonReply(buttonId) {
-    // Approval buttons
-    if (buttonId === 'approve') {
-      return this.sessionManager.approveAction(true);
+    // Approval buttons — scoped to project (approve_<project> / deny_<project>)
+    if (buttonId.startsWith('approve_')) {
+      const project = buttonId.slice(8);
+      return this.sessionManager.approveAction(true, project);
     }
-    if (buttonId === 'deny') {
-      return this.sessionManager.approveAction(false);
+    if (buttonId.startsWith('deny_')) {
+      const project = buttonId.slice(5);
+      return this.sessionManager.approveAction(false, project);
     }
 
     // Kill command: kill_<project>

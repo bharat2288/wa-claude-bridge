@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+*.env
+credentials.json
+cookies.json
+*.pem
+*.key
+
+# Logs
+*.log
+server.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code local settings (permissions, session-specific)
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Legacy (whatsapp-web.js auth, no longer used)
+.wwebjs_auth/

@@ -9,6 +9,24 @@ export class WhatsAppFormatter {
   }
 
   /**
+   * Add project tag prefix to a message.
+   * Format: 📂 *projectName* | text
+   */
+  addProjectTag(text, projectName) {
+    if (!text || !projectName) return text;
+
+    // Split into lines and tag each one (for multi-line messages)
+    const lines = text.split('\n');
+    const tagged = lines.map(line => {
+      // Empty lines don't get tagged
+      if (!line.trim()) return line;
+      return `📂 *${projectName}* | ${line}`;
+    });
+
+    return tagged.join('\n');
+  }
+
+  /**
    * Convert Markdown text to WhatsApp-formatted text.
    */
   format(text) {

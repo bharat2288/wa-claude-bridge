@@ -43,13 +43,13 @@ async function replyButtons(bodyText, buttons) {
   }
 }
 
-async function replyList(bodyText, buttonText, items) {
+async function replyList(bodyText, buttonText, items, sections = null) {
   if (!userNumber) {
     console.error('[server] No user number known yet — cannot send list');
     return;
   }
   try {
-    await sendList(userNumber, bodyText, buttonText, items);
+    await sendList(userNumber, bodyText, buttonText, items, sections);
   } catch (err) {
     console.error('[server] Failed to send list:', err.message);
   }

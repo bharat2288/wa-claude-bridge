@@ -86,11 +86,25 @@ export async function sendButtons(to, bodyText, buttons) {
  * @param {string} to - Recipient phone number
  * @param {string} bodyText - Main message text
  * @param {string} buttonText - Text on the list button (e.g., "Select Project")
- * @param {Array<{id: string, title: string, description?: string}>} items - Up to 10 items
+ * @param {Array<{id: string, title: string, description?: string}>} items - Items to display
+ * @param {Array<{title: string, items: Array}>} sections - Optional pre-grouped sections (overrides auto-sectioning)
  */
-export async function sendList(to, bodyText, buttonText, items) {
-  if (items.length > 10) {
-    throw new Error('WhatsApp supports max 10 items in a list');
+export async function sendList(to, bodyText, buttonText, items, sections = null) {
+  // If sections are provided, use them directly
+  let finalSections = sections;
+
+  if (!finalSections) {
+    // WhatsApp enforces max 10 total rows across all sections
+    const capped = items.slice(0, 10);
+
+    finalSections = [{
+      title: 'Items',
+      rows: capped.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || '',
+      })),
+    }];
   }
 
   const response = await fetch(BASE_URL, {
@@ -108,16 +122,7 @@ export async function sendList(to, bodyText, buttonText, items) {
         body: { text: bodyText },
         action: {
           button: buttonText,
-          sections: [
-            {
-              title: 'Projects',
-              rows: items.map(item => ({
-                id: item.id,
-                title: item.title,
-                description: item.description || '',
-              })),
-            },
-          ],
+          sections: finalSections,
         },
       },
     }),

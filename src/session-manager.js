@@ -53,7 +53,8 @@ export class SessionManager {
       if (!processed) return;
 
       const formatted = formatter.format(processed);
-      const chunks = formatter.split(formatted);
+      const tagged = formatter.addProjectTag(formatted, projectName);
+      const chunks = formatter.split(tagged);
       for (const chunk of chunks) {
         this.sendMessage(chunk);
       }
@@ -61,13 +62,17 @@ export class SessionManager {
 
     // Tool-use notifications — send concise status
     session.on('tool-start', ({ description }) => {
-      this.sendMessage(`_${description}_`);
+      const tagged = formatter.addProjectTag(`_${description}_`, projectName);
+      this.sendMessage(tagged);
     });
 
     // Bash approval requests — relay to WhatsApp with interactive buttons
     session.on('approval-needed', ({ description }) => {
+      const message = `*[ACTION NEEDED]*\n\nClaude wants to run:\n${description}`;
+      const tagged = formatter.addProjectTag(message, projectName);
+
       this.sendButtons(
-        `*[ACTION NEEDED]*\n\nClaude wants to run:\n${description}`,
+        tagged,
         [
           { id: 'approve', title: '✓ Approve' },
           { id: 'deny', title: '✗ Deny' },
@@ -75,9 +80,9 @@ export class SessionManager {
       ).catch(err => {
         // Fallback to text if buttons fail
         console.error('[session] Failed to send buttons:', err.message);
-        this.sendMessage(
-          `*[ACTION NEEDED]*\n\nClaude wants to run:\n${description}\n\nReply /yes to approve or /no to deny.`
-        );
+        const fallback = `*[ACTION NEEDED]*\n\nClaude wants to run:\n${description}\n\nReply /yes to approve or /no to deny.`;
+        const taggedFallback = formatter.addProjectTag(fallback, projectName);
+        this.sendMessage(taggedFallback);
       });
     });
 
@@ -88,12 +93,16 @@ export class SessionManager {
 
     // Errors
     session.on('error', (err) => {
-      this.sendMessage(`*[ERROR]* ${projectName}: ${err.message}`);
+      const message = `*[ERROR]* ${err.message}`;
+      const tagged = formatter.addProjectTag(message, projectName);
+      this.sendMessage(tagged);
     });
 
     // Interrupted
     session.on('interrupted', () => {
-      this.sendMessage(`_${projectName} — interrupted._`);
+      const message = `_Interrupted._`;
+      const tagged = formatter.addProjectTag(message, projectName);
+      this.sendMessage(tagged);
     });
 
     // Store and activate
@@ -124,7 +133,8 @@ export class SessionManager {
     console.log(`[session] Sending to ${this.activeProject}: "${text.slice(0, 80)}"`);
 
     // Send acknowledgment immediately — SDK cold start can take a few seconds
-    this.sendMessage(`_Working on it..._`);
+    const ack = entry.formatter.addProjectTag(`_Working on it..._`, this.activeProject);
+    this.sendMessage(ack);
 
     // Fire off the query (async — events will deliver the response)
     entry.session.send(text).catch((err) => {

@@ -17,6 +17,8 @@
 | `interactive-ux` | Added WhatsApp interactive messages — button approvals and project selection menu | 2026-02-17 | ✓ |
 | `project-tagging` | Visual project tags on all messages — 📂 *projectName* prefix for clear context | 2026-02-17 | ✓ |
 | `interactive-expansion` | Enhanced all interactive commands — `/kill`, `/restart` get tap menus; `/open` supports 100 projects with alphabetical sections | 2026-02-17 | ✓ |
+| `bugfixes-ux` | Fixed server crash (duplicate var), WhatsApp 10-row limit, /open prefix filter + active-first sorting, scoped approval buttons | 2026-02-17 | ✓ |
+| `ngrok-debug` | Diagnosed ngrok tunnel pointing at wrong port (8350 vs 3100) due to wa-lead-bot hijacking shared domain. Restarted tunnel on correct port. | 2026-02-18 | ✓ |
 
 **Status key:** ✓ Complete | 🔄 In Progress | ⏸ Paused | ❌ Abandoned
 
@@ -29,7 +31,7 @@
 - **Streaming text delivery**: Buffered every 3s, processed through ContentProcessor → WhatsAppFormatter → wa-client
 - **Tool approval flow**: Reads/edits auto-approved, Bash commands relayed to WhatsApp with interactive buttons
 - **Interactive approvals**: Bash commands show [✓ Approve] [✗ Deny] buttons (auto-fallback to text)
-- **Interactive project menu**: `/open` shows alphabetically-grouped dropdown (up to 100 projects, auto-fallback to text list)
+- **Interactive project menu**: `/open` shows top 10 (active sessions first); `/open <prefix>` filters by name; single match auto-opens
 - **Interactive session menus**: `/kill` and `/restart` show tap-to-select active session lists
 - **Session resume**: Session IDs persisted per project, conversations continue across messages
 - **Project tagging**: Every message prefixed with `📂 *projectName* |` for instant visual context when switching projects
@@ -90,27 +92,20 @@
 
 > Specific, actionable tasks. First item = start here.
 
-### Priority 1: Test new interactive features (requires server restart)
-- [ ] Restart server: `pm2 restart wa-claude` or `node server.js`
-- [ ] Send `/open` → verify alphabetically-grouped project menu appears
-- [ ] Tap a project from menu → verify it opens
-- [ ] Send `/kill` (no arg) → verify active sessions menu appears
-- [ ] Tap a session from kill menu → verify it terminates
-- [ ] Send `/restart` (no arg) → verify active sessions menu appears
-- [ ] Tap a session from restart menu → verify it restarts
-- [ ] Verify project tags appear on all messages: `📂 *projectName* | text`
-- [ ] Trigger Bash approval → verify [Approve] [Deny] buttons appear
-- [ ] Test fallback: artificially break interactive API, verify text fallback works
+### Priority 1: Live testing
+- [ ] Test cross-project approval: open A, trigger approval, switch to B, tap Approve on A's button
+- [ ] Test `/open` prefix filtering live (`/open t`, `/open wa`, etc.)
+- [ ] Test session resume across multiple messages
+- [ ] Test hooks/skills firing through SDK subprocess
 
-### Priority 2: Git + Documentation
-- [ ] Initialize git repo, commit all changes
-- [ ] Update design doc to reflect SDK architecture + interactive UX
-- [ ] Add interactive features to README
-
-### Priority 3: Stability
+### Priority 2: Stability + Polish
 - [ ] PM2 setup for persistent daemon
-- [ ] Consider Cloudflare Tunnel (only if ngrok becomes problematic)
 - [ ] Handle edge cases (very long responses, SDK errors, cold start latency)
+- [ ] Consider Cloudflare Tunnel (only if ngrok becomes problematic)
+
+### Priority 3: Documentation
+- [ ] Update design doc to reflect SDK architecture + all interactive features
+- [ ] Add README for GitHub
 
 ---
 
@@ -168,11 +163,12 @@ WA_CLAUDE_MODEL=sonnet  (optional, defaults to sonnet)
 
 ## Notes
 
+- **Ngrok shared domain risk**: Only one ngrok tunnel runs at a time on the free plan. Starting `ngrok http <other-port>` for another project (e.g., wa-lead-bot on 8350) silently hijacks the stable domain away from wa-claude. Fix: use a second tunnel provider (Cloudflare Tunnel) for the other bot, or get a second ngrok domain.
 - Ngrok dashboard at http://localhost:4040 for inspecting webhook traffic
 - Meta Developer Console: https://developers.facebook.com/apps/ → "WA Claude Bridge"
 - System User token created in Meta Business Settings → System Users (permanent, all permissions)
 - SDK v0.2.42 installed. permissionMode: acceptEdits. maxTurns: 50.
-- Interactive messages: buttons (max 3, max 20 chars), lists (max 10 sections × 10 items = 100 total, max 24 chars per title)
+- Interactive messages: buttons (max 3, max 20 chars), lists (max 10 total rows, max 24 chars per title)
 - Auto-fallback to text if interactive API calls fail (logged to console)
 - Project tags: Format `📂 *projectName* |` applied to all session messages, NOT applied to system commands
-- Button ID format: `approve`/`deny` for actions, `kill_<project>` and `restart_<project>` for session commands, plain project name for `/open`
+- Button ID format: `approve_<project>`/`deny_<project>` for actions (scoped to project), `kill_<project>` and `restart_<project>` for session commands, plain project name for `/open`

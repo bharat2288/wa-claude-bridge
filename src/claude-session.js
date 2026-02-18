@@ -37,6 +37,9 @@ export class ClaudeSession extends EventEmitter {
     this._bufferTimer = null;
     this._isActive = false;
 
+    // Query-level timeout timer
+    this._queryTimer = null;
+
     // Accumulated full response text (for /full command)
     this._fullResponse = '';
   }
@@ -60,6 +63,14 @@ export class ClaudeSession extends EventEmitter {
 
     // Set up abort controller for interrupt support
     this._abortController = new AbortController();
+
+    // Query-level timeout — abort if the entire query takes too long.
+    // Prevents silent hangs from SDK or network issues.
+    this._queryTimer = setTimeout(() => {
+      console.error(`[claude] ${this.projectName} — query timeout (${config.claude.queryTimeoutMs / 1000}s), aborting`);
+      this._abortController.abort();
+      this.emit('timeout');
+    }, config.claude.queryTimeoutMs);
 
     // Build query options
     const options = {
@@ -129,8 +140,8 @@ export class ClaudeSession extends EventEmitter {
         }
       }
     } catch (err) {
-      // AbortError is expected when we call interrupt()
-      if (err.name === 'AbortError' || this._abortController.signal.aborted) {
+      // AbortError is expected when we call interrupt() or query timeout
+      if (err.name === 'AbortError' || this._abortController?.signal.aborted) {
         console.log(`[claude] ${this.projectName} — query interrupted`);
         this.emit('interrupted');
       } else {
@@ -138,11 +149,22 @@ export class ClaudeSession extends EventEmitter {
         this.emit('error', err);
       }
     } finally {
-      // Flush any remaining buffered text
+      // Always clean up — this is the critical path that prevents deadlocks.
+      // Even if something above throws unexpectedly, _isActive MUST be reset.
       this._flushBuffer();
       this._isActive = false;
       this._currentQuery = null;
+      if (this._queryTimer) {
+        clearTimeout(this._queryTimer);
+        this._queryTimer = null;
+      }
       this._abortController = null;
+
+      // Reject any orphaned approval promise so it doesn't leak
+      if (this._pendingApproval) {
+        this._pendingApproval.resolve(false);
+        this._pendingApproval = null;
+      }
     }
   }
 
@@ -247,13 +269,45 @@ export class ClaudeSession extends EventEmitter {
       description: commandDesc,
     });
 
-    // Wait for user to reply via WhatsApp
+    // Wait for user to reply via WhatsApp — with timeout to prevent deadlock.
+    // If user doesn't respond within approvalTimeoutMs, auto-deny.
+    const timeoutMs = config.claude.approvalTimeoutMs;
+
     const approved = await new Promise((resolve, reject) => {
-      this._pendingApproval = { resolve, reject };
+      let settled = false;
+
+      const settle = (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+
+      // Timeout → auto-deny and notify user
+      const timer = setTimeout(() => {
+        if (settled) return;
+        console.warn(`[claude] ${this.projectName} — approval timed out after ${timeoutMs / 1000}s, auto-denying`);
+        this._pendingApproval = null;
+        this.emit('approval-timeout', { toolName, description: commandDesc });
+        settle(false);
+      }, timeoutMs);
+
+      this._pendingApproval = {
+        resolve: settle,
+        reject: (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          reject(err);
+        },
+      };
 
       // Also listen for abort signal
       if (signal) {
         signal.addEventListener('abort', () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
           reject(new Error('interrupted'));
         }, { once: true });
       }

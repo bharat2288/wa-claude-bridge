@@ -44,6 +44,10 @@ export default {
     streamBufferMs: 3000,
     // Safety limit on agentic turns per query
     maxTurns: 50,
+    // Timeout for user to approve/deny a Bash command (ms) — auto-deny after this
+    approvalTimeoutMs: 5 * 60 * 1000, // 5 minutes
+    // Maximum wall-clock time for a single query (ms) — abort after this
+    queryTimeoutMs: 10 * 60 * 1000, // 10 minutes
   },
 
   // Server

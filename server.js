@@ -12,6 +12,19 @@ import { sendMessage, sendButtons, sendList } from './src/wa-client.js';
 import { SessionManager } from './src/session-manager.js';
 import { CommandRouter } from './src/command-router.js';
 
+// Global error handlers — prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err.message);
+  console.error(err.stack);
+  // Stay alive — most uncaught exceptions in this app are non-fatal
+  // (SDK errors, network issues, etc.). Only truly fatal errors
+  // (corrupted state) would need a restart, which PM2 handles.
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[WARN] Unhandled rejection:', reason);
+});
+
 const app = express();
 app.use(express.json());
 

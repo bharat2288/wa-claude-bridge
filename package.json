@@ -6,11 +6,19 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "pm2:start": "npx pm2 start ecosystem.config.cjs",
+    "pm2:stop": "npx pm2 stop wa-claude",
+    "pm2:restart": "npx pm2 restart wa-claude",
+    "pm2:logs": "npx pm2 logs wa-claude",
+    "pm2:status": "npx pm2 status"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.42",
     "dotenv": "^16.4.0",
     "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "pm2": "^6.0.14"
   }
 }

@@ -91,6 +91,20 @@ export class SessionManager {
       console.log(`[session] ${projectName} — query complete (${turns} turns, $${cost?.toFixed(4) || '?'})`);
     });
 
+    // Approval timed out — notify user it was auto-denied
+    session.on('approval-timeout', ({ description }) => {
+      const message = `*[TIMEOUT]* Approval expired after 5 min — auto-denied:\n${description}`;
+      const tagged = formatter.addProjectTag(message, projectName);
+      this.sendMessage(tagged);
+    });
+
+    // Query timed out — the whole query hit the wall-clock limit
+    session.on('timeout', () => {
+      const message = `*[TIMEOUT]* Query exceeded 10 min limit and was aborted. Send another message to continue.`;
+      const tagged = formatter.addProjectTag(message, projectName);
+      this.sendMessage(tagged);
+    });
+
     // Errors
     session.on('error', (err) => {
       const message = `*[ERROR]* ${err.message}`;

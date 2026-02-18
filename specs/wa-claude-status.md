@@ -19,6 +19,8 @@
 | `interactive-expansion` | Enhanced all interactive commands — `/kill`, `/restart` get tap menus; `/open` supports 100 projects with alphabetical sections | 2026-02-17 | ✓ |
 | `bugfixes-ux` | Fixed server crash (duplicate var), WhatsApp 10-row limit, /open prefix filter + active-first sorting, scoped approval buttons | 2026-02-17 | ✓ |
 | `ngrok-debug` | Diagnosed ngrok tunnel pointing at wrong port (8350 vs 3100) due to wa-lead-bot hijacking shared domain. Restarted tunnel on correct port. | 2026-02-18 | ✓ |
+| `timeout-fixes` | Added timeout protection to prevent mid-conversation hangs: 5-min approval timeout, 10-min query timeout, bulletproof isActive cleanup | 2026-02-18 | ✓ |
+| `production-hardening` | Replaced ngrok with Cloudflare Tunnel (wa-claude.project2976.xyz), PM2 process management with auto-restart + boot survival, global error handlers | 2026-02-18 | ✓ |
 
 **Status key:** ✓ Complete | 🔄 In Progress | ⏸ Paused | ❌ Abandoned
 
@@ -99,9 +101,10 @@
 - [ ] Test hooks/skills firing through SDK subprocess
 
 ### Priority 2: Stability + Polish
-- [ ] PM2 setup for persistent daemon
+- [x] PM2 setup for persistent daemon
+- [x] Cloudflare Tunnel replacing ngrok
+- [x] Global error handlers (uncaughtException / unhandledRejection)
 - [ ] Handle edge cases (very long responses, SDK errors, cold start latency)
-- [ ] Consider Cloudflare Tunnel (only if ngrok becomes problematic)
 
 ### Priority 3: Documentation
 - [ ] Update design doc to reflect SDK architecture + all interactive features
@@ -163,8 +166,9 @@ WA_CLAUDE_MODEL=sonnet  (optional, defaults to sonnet)
 
 ## Notes
 
-- **Ngrok shared domain risk**: Only one ngrok tunnel runs at a time on the free plan. Starting `ngrok http <other-port>` for another project (e.g., wa-lead-bot on 8350) silently hijacks the stable domain away from wa-claude. Fix: use a second tunnel provider (Cloudflare Tunnel) for the other bot, or get a second ngrok domain.
-- Ngrok dashboard at http://localhost:4040 for inspecting webhook traffic
+- **Cloudflare Tunnel**: `wa-claude.project2976.xyz` → `localhost:3100`. Ingress rule in `~/.cloudflared/config.yml` (shared tunnel with scholia). Installed as Windows service (`cloudflared service install`).
+- **PM2**: Process manager for wa-claude. Auto-restart on crash, boot survival via `pm2-windows-startup`. Logs in `logs/`. Commands: `npm run pm2:start|stop|restart|logs|status`.
+- **Global error handlers**: `uncaughtException` and `unhandledRejection` in server.js — logs errors, keeps process alive.
 - Meta Developer Console: https://developers.facebook.com/apps/ → "WA Claude Bridge"
 - System User token created in Meta Business Settings → System Users (permanent, all permissions)
 - SDK v0.2.42 installed. permissionMode: acceptEdits. maxTurns: 50.

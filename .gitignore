@@ -13,6 +13,7 @@ cookies.json
 # Logs
 *.log
 server.log
+logs/
 
 # OS
 .DS_Store

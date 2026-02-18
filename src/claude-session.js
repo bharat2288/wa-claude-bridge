@@ -263,14 +263,12 @@ export class ClaudeSession extends EventEmitter {
       ? `\`${input.command}\``
       : `${toolName}: ${JSON.stringify(input).slice(0, 200)}`;
 
-    this.emit('approval-needed', {
-      toolName,
-      input,
-      description: commandDesc,
-    });
-
     // Wait for user to reply via WhatsApp — with timeout to prevent deadlock.
     // If user doesn't respond within approvalTimeoutMs, auto-deny.
+    //
+    // IMPORTANT: _pendingApproval must be set BEFORE emitting approval-needed.
+    // Otherwise there's a race condition — the user can respond via WhatsApp
+    // before the promise is created, and the response gets lost.
     const timeoutMs = config.claude.approvalTimeoutMs;
 
     const approved = await new Promise((resolve, reject) => {
@@ -311,6 +309,13 @@ export class ClaudeSession extends EventEmitter {
           reject(new Error('interrupted'));
         }, { once: true });
       }
+
+      // Emit AFTER _pendingApproval is set — user's response can now be caught
+      this.emit('approval-needed', {
+        toolName,
+        input,
+        description: commandDesc,
+      });
     });
 
     if (approved) {
@@ -352,12 +357,19 @@ export class ClaudeSession extends EventEmitter {
         this._bufferText(block.text);
 
       } else if (block.type === 'tool_use') {
-        // Emit tool-use notification (e.g., "Reading src/auth.py...")
-        const toolDesc = this._describeToolUse(block.name, block.input);
-        this.emit('tool-start', {
-          toolName: block.name,
-          description: toolDesc,
-        });
+        // Only emit tool-start for auto-approved tools (reads, edits, etc.).
+        // For tools needing manual approval (Bash), the approval-needed event
+        // serves as the notification. Showing "Running: ..." for Bash is
+        // misleading — it suggests the command already started, causing users
+        // to send /yes before the approval promise exists (race condition).
+        const autoApproveTools = config.claude.allowedTools;
+        if (autoApproveTools.includes(block.name)) {
+          const toolDesc = this._describeToolUse(block.name, block.input);
+          this.emit('tool-start', {
+            toolName: block.name,
+            description: toolDesc,
+          });
+        }
       } else {
         console.log(`[claude] ${this.projectName} — other block type: ${block.type}`, JSON.stringify(block).slice(0, 200));
       }

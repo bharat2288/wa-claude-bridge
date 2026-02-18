@@ -66,9 +66,17 @@ export class SessionManager {
       this.sendMessage(tagged);
     });
 
-    // Bash approval requests — relay to WhatsApp with interactive buttons
+    // Bash approval requests — relay to WhatsApp with interactive buttons.
+    // WhatsApp button body text has a 1024 char limit — truncate long commands.
     session.on('approval-needed', ({ description }) => {
-      const message = `*[ACTION NEEDED]*\n\nClaude wants to run:\n${description}`;
+      // Truncate command description to fit within WhatsApp's 1024 char body limit.
+      // Reserve space for the prefix text and project tag.
+      const maxDescLen = 900;
+      const truncDesc = description.length > maxDescLen
+        ? description.slice(0, maxDescLen) + '..._'
+        : description;
+
+      const message = `*[ACTION NEEDED]*\n\nClaude wants to run:\n${truncDesc}`;
       const tagged = formatter.addProjectTag(message, projectName);
 
       this.sendButtons(
@@ -78,9 +86,9 @@ export class SessionManager {
           { id: `deny_${projectName}`, title: '✗ Deny' },
         ]
       ).catch(err => {
-        // Fallback to text if buttons fail
+        // Fallback to text if buttons fail — still needs approval via /yes or /no
         console.error('[session] Failed to send buttons:', err.message);
-        const fallback = `*[ACTION NEEDED]*\n\nClaude wants to run:\n${description}\n\nReply /yes to approve or /no to deny.`;
+        const fallback = `*[ACTION NEEDED]*\n\nClaude wants to run:\n${truncDesc}\n\nReply /yes to approve or /no to deny.`;
         const taggedFallback = formatter.addProjectTag(fallback, projectName);
         this.sendMessage(taggedFallback);
       });

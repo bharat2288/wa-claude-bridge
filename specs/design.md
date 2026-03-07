@@ -1,4 +1,10 @@
-# wa-claude — Design
+---
+type: design
+project: wa-claude
+date: 2026-02-14
+---
+# [[wa-claude-home|WA Claude]] — Design
+*[[dev-hub|Hub]]*
 
 > Living document: what we're building and why.
 > Update when scope changes, architecture evolves, or constraints are discovered.

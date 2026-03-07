@@ -110,6 +110,10 @@ export class CommandRouter {
       case '/cancel':
         return this.sessionManager.cancel();
 
+      // Cost reporting
+      case '/cost':
+        return this.showCostReport(arg);
+
       case '/help':
         return [
           '*wa-claude commands:*\n',
@@ -118,6 +122,7 @@ export class CommandRouter {
           '/restart — Show session menu (or /restart <project> for direct)',
           '/list — Show all active sessions',
           '/status — System health info',
+          '/cost — Today\'s API usage (or /cost week|month|all)',
           '/full — Resend last output untruncated',
           '/cancel — Interrupt current Claude query',
           '/help — This message',
@@ -273,6 +278,17 @@ export class CommandRouter {
       const list = activeSessions.map(name => `• ${name}`).join('\n');
       return `Active sessions:\n\n${list}\n\nReply with: /restart <project-name>`;
     }
+  }
+
+  /**
+   * Show cost report based on period.
+   * @param {string} period - 'today' (default), 'week', 'month', or 'all'
+   */
+  showCostReport(period = '') {
+    const validPeriods = ['today', 'week', 'month', 'all'];
+    const selectedPeriod = validPeriods.includes(period) ? period : 'today';
+
+    return this.sessionManager.costTracker.formatReport({ period: selectedPeriod });
   }
 
 }

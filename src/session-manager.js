@@ -4,6 +4,7 @@
 import { ClaudeSession } from './claude-session.js';
 import { ContentProcessor } from './content-processor.js';
 import { WhatsAppFormatter } from './wa-formatter.js';
+import { CostTracker } from './cost-tracker.js';
 import config from './config.js';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
@@ -20,6 +21,9 @@ export class SessionManager {
 
     // Currently active project name (messages route here)
     this.activeProject = null;
+
+    // Cost tracker for API usage monitoring
+    this.costTracker = new CostTracker();
   }
 
   /**
@@ -94,9 +98,10 @@ export class SessionManager {
       });
     });
 
-    // Query complete
+    // Query complete — record cost
     session.on('done', ({ turns, cost }) => {
       console.log(`[session] ${projectName} — query complete (${turns} turns, $${cost?.toFixed(4) || '?'})`);
+      this.costTracker.recordQuery(projectName, { turns, cost });
     });
 
     // Approval timed out — notify user it was auto-denied

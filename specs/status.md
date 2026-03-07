@@ -1,4 +1,10 @@
-# wa-claude — Status
+---
+type: status
+project: wa-claude
+date: 2026-02-23
+---
+# [[wa-claude-home|WA Claude]] — Status
+*[[dev-hub|Hub]]*
 
 > Session continuity document. Claude Code updates this at end of each session.
 > Read this first to know where we are.
@@ -21,6 +27,8 @@
 | `ngrok-debug` | Diagnosed ngrok tunnel pointing at wrong port (8350 vs 3100) due to wa-lead-bot hijacking shared domain. Restarted tunnel on correct port. | 2026-02-18 | ✓ |
 | `timeout-fixes` | Added timeout protection to prevent mid-conversation hangs: 5-min approval timeout, 10-min query timeout, bulletproof isActive cleanup | 2026-02-18 | ✓ |
 | `production-hardening` | Replaced ngrok with Cloudflare Tunnel (wa-claude.project2976.xyz), PM2 process management with auto-restart + boot survival, global error handlers | 2026-02-18 | ✓ |
+| `approval-race-fix` | Fixed approval race condition (_pendingApproval before emit), stopped misleading "Running:" for Bash tools, truncated button body to 1024 char limit | 2026-02-18 | ✓ |
+| `cost-tracking` | Added CostTracker module — logs all query costs to JSON, provides daily/weekly/monthly summaries via `/cost` command | 2026-02-23 | ✓ |
 
 **Status key:** ✓ Complete | 🔄 In Progress | ⏸ Paused | ❌ Abandoned
 
@@ -39,6 +47,7 @@
 - **Project tagging**: Every message prefixed with `📂 *projectName* |` for instant visual context when switching projects
 - **Slash command pass-through**: Unrecognized /commands forwarded to Claude (skills work transparently)
 - **WhatsApp formatting**: Markdown → WhatsApp native (bold, italic, strikethrough, headers, links, tables)
+- **Cost tracking**: Logs all query costs to `data/cost-log.json`, provides summaries via `/cost` command (today/week/month/all)
 - **System User permanent token**: Set up via Meta Business Suite
 - **Dev Server Manager**: Port 3100 registered
 - **Webhook + command routing**: All working (handles text, button_reply, list_reply)
@@ -143,13 +152,14 @@ WhatsApp (text/button/list) → Meta webhook → server.js
 | File | Purpose |
 |------|---------|
 | `src/claude-session.js` | SDK wrapper — query(), streaming, tool approval, session resume |
-| `src/session-manager.js` | Wires ClaudeSession events → processing pipeline → WhatsApp. Uses sendButtons for approvals. |
-| `src/command-router.js` | Slash commands + button routing. `/open`/`/kill`/`/restart` → interactive lists, handles all button IDs |
+| `src/session-manager.js` | Wires ClaudeSession events → processing pipeline → WhatsApp. Uses sendButtons for approvals. Integrates CostTracker. |
+| `src/command-router.js` | Slash commands + button routing. `/open`/`/kill`/`/restart` → interactive lists, `/cost` → usage reports, handles all button IDs |
 | `src/content-processor.js` | Error detection, summarization, code block truncation |
 | `src/wa-formatter.js` | Markdown → WhatsApp formatting, project tagging, message splitting |
 | `src/wa-client.js` | Meta WhatsApp Cloud API client — sendMessage/sendButtons/sendList (multi-section support) |
 | `src/webhook.js` | Express webhook routes — handles text, interactive.button_reply, interactive.list_reply |
 | `src/config.js` | Config (WhatsApp creds, Claude SDK settings, output thresholds) |
+| `src/cost-tracker.js` | API cost tracking — logs queries to JSON, calculates daily/weekly/monthly totals, formats reports |
 | `server.js` | Entry point — Express server, message routing, wires interactive callbacks |
 | `INTERACTIVE.md` | Documentation for interactive WhatsApp features |
 
@@ -169,6 +179,7 @@ WA_CLAUDE_MODEL=sonnet  (optional, defaults to sonnet)
 - **Cloudflare Tunnel**: `wa-claude.project2976.xyz` → `localhost:3100`. Ingress rule in `~/.cloudflared/config.yml` (shared tunnel with scholia). Installed as Windows service (`cloudflared service install`).
 - **PM2**: Process manager for wa-claude. Auto-restart on crash, boot survival via `pm2-windows-startup`. Logs in `logs/`. Commands: `npm run pm2:start|stop|restart|logs|status`.
 - **Global error handlers**: `uncaughtException` and `unhandledRejection` in server.js — logs errors, keeps process alive.
+- **Cost tracking**: Logs stored in `data/cost-log.json` (gitignored). Tracks per-query costs with timestamp, project, turns, cost. Aggregates daily/monthly totals. `/cost` command shows today by default, supports week/month/all periods.
 - Meta Developer Console: https://developers.facebook.com/apps/ → "WA Claude Bridge"
 - System User token created in Meta Business Settings → System Users (permanent, all permissions)
 - SDK v0.2.42 installed. permissionMode: acceptEdits. maxTurns: 50.

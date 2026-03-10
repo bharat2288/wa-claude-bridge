@@ -7,17 +7,46 @@ cssclasses:
 ---
 # WA Claude
 *[[dev-hub|Hub]] · [[README|GitHub]]*
+<span class="hub-status">&mdash;</span>
 
 WhatsApp-to-Claude Code bridge. Node.js daemon routing WhatsApp groups to persistent Claude Code PTY sessions for mobile access.
 
 ## Specs
 
-```dataview
-TABLE rows.file.link as Specs
-FROM "wa-claude/specs"
-WHERE type AND type != "spec-prompts"
-GROUP BY type
-SORT type ASC
+```base
+filters:
+  and:
+    - file.folder.contains("wa-claude/specs")
+    - type != "spec-prompts"
+properties:
+  "0":
+    name: file.link
+    label: Spec
+  "1":
+    name: type
+    label: Type
+  "2":
+    name: date
+    label: Date
+  "3":
+    name: created_by
+    label: Created By
+  "4":
+    name: file.mtime
+    label: Modified
+views:
+  - type: table
+    name: All Specs
+    order:
+      - type
+      - file.name
+      - file.mtime
+      - file.backlinks
+    sort:
+      - property: file.mtime
+        direction: DESC
+      - property: type
+        direction: ASC
 ```
 > [!warning]- Open Errors (`$= dv.pages('"knowledge/exports/errors"').where(p => p.project == "wa-claude" && !p.resolved).length`)
 > ```dataview

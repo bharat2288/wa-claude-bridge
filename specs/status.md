@@ -5,6 +5,7 @@ date: 2026-02-23
 ---
 # [[wa-claude-home|WA Claude]] — Status
 *[[dev-hub|Hub]]*
+> Related: [[design]]
 
 > Session continuity document. Claude Code updates this at end of each session.
 > Read this first to know where we are.

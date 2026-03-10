@@ -5,6 +5,7 @@ date: 2026-03-06
 ---
 # [[wa-claude-home|WA Claude]] — Guide: Cost Tracking
 *[[dev-hub|Hub]]*
+> Related: [[design]]
 
 wa-claude tracks all Claude API usage and provides detailed cost reports via WhatsApp.
 
